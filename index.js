@@ -4,15 +4,14 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 dotenv.config();
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ========================
-   MongoDB Connection
-======================== */
-
+// ========================
+// MongoDB Connection
+// ========================
 let isConnected = false;
 
 const connectDB = async () => {
@@ -29,52 +28,47 @@ const connectDB = async () => {
 
 await connectDB();
 
-/* ========================
-   User Schema
-======================== */
-
-const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  password: String
-}, { timestamps: true });
+// ========================
+// User Schema
+// ========================
+const userSchema = new mongoose.Schema(
+  {
+    name: String,
+    email: { type: String, unique: true },
+    password: String
+  },
+  { timestamps: true }
+);
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 
-/* ========================
-   Routes
-======================== */
+// ========================
+// Routes
+// ========================
 
 // Root
 app.get("/", (req, res) => {
-  res.json({ message: "Backend Running on Vercel 🚀" });
+  res.json({ message: "Backend Running 🚀" });
 });
 
 // Register
 app.post("/api/users/register", async (req, res) => {
   try {
     await connectDB();
-
     const { name, email, password } = req.body;
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Please fill all fields ❌" });
     }
+
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ message: "User already exists ❌" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword
-    });
+    const user = await User.create({ name, email, password: hashedPassword });
 
-    res.status(201).json({
-      message: "Registered Successfully ✅",
-      user
-    });
-
+    res.status(201).json({ message: "Registered Successfully ✅", user });
   } catch (error) {
     res.status(500).json({ message: "Server Error ❌" });
   }
@@ -84,26 +78,19 @@ app.post("/api/users/register", async (req, res) => {
 app.post("/api/users/login", async (req, res) => {
   try {
     await connectDB();
-
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid Email" });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Please fill all fields ❌" });
     }
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid Email ❌" });
 
     const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid Password ❌" });
 
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid Password" });
-    }
-
-    res.json({
-      message: "Login Successful ✅",
-      user
-    });
-
+    res.json({ message: "Login Successful ✅", user });
   } catch (error) {
     res.status(500).json({ message: "Server Error ❌" });
   }
@@ -113,5 +100,13 @@ app.post("/api/users/login", async (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ message: "Route Not Found ❌" });
 });
+
+// ========================
+// Local testing (optional)
+// ========================
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));
+}
 
 export default app;
